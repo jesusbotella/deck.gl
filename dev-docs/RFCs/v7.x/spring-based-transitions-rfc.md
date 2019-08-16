@@ -7,11 +7,40 @@
 
 ## Abstract
 
-[FILL ME IN]
+As previous animation- and transition-related RFCs have pointed out, easy-to-use animation and
+transition systems are often-requested features. The existing interpolation-based transition API
+allows users to define transitions much like you'd define one with CSS. Given a duration and 
+easing method, the transition system will interpolate between a `from` value and a `to` value.
+For natural-looking transitions, an easing method (e.g. `ease-in-out`) is often used to make the
+animating object or value appear to accelerate and decelerate, maintaining some sense of momentum,
+as moving objects tend to do in the real world. Interrupting these transitions can break this
+illusion, however, as the object's position at the time of interruption then becomes the new
+`from` value for a new transition. The object often abrubtly changes its direction and speed as
+it suddenly jumps to the beginning of the new transition's easing curve. Physics-based animations,
+like the spring-based transition system proposed here, can get around this problem by maintaining
+an animating value's "momentum".
 
-[WHEN ARE SPRING-BASED TRANSITIONS USEFUL]
 
-[TALK ABOUT DOING SPRING-BASED TRANSITIONS ON THE GPU]
+## About spring-based transitions
+
+This RFC proposes one specific kind of physics-based transition adapted from [Hooke's law](https://en.wikipedia.org/wiki/Hooke%27s_law)
+for describing the movements of springs. A spring-based transition system defines a transition
+with two parameters: `stiffness` and `damping`. Spring-based transition systems generally model an
+animating value as a spring which pulls towards the `to` value (i.e. the spring's resting state) by
+a `stiffness` factor, the force of which is countered by "friction" (i.e. the inverse of the
+animating value's velocity scaled by a `damping` factor). This is the logic for each tick, in pseudocode:
+
+```
+distance_to_destination = destination_value - current_value
+velocity = current_value - previous_value
+acceleration = distance_to_destination * stiffness - velocity * damping
+next_value = current_value + velocity + acceleration
+```
+
+It's important to note that spring-based transition systems are useful primarily because they can make
+animations more natural-looking (e.g. transitions may be interrupted without abrupt changes in speed
+or direction, etc) and *not* because they can make "springy" animation visuals. (One can select
+`stiffness` and `damping` parameters which do not result in "springy" animations.)
 
 
 ## Approach
@@ -69,8 +98,6 @@ new Layer({
 });
 ```
 
-[SAY SOME STUFF HERE ABOUT `onStart`, `onEnd`, AND `onInterrupt` CALLBACKS]
-
 Note the following change to the `enter` callback:
 
 The `enter` callback receives _one_ argument. A `toValue` (TypedArray) which represents the new value to transition to, for the current vertex. The `fromChunk` value that is supplied to `enter` for interpolation-based transitions is not supplied for spring-based transitions because no "from value" is maintained for the transition. 
@@ -78,4 +105,37 @@ The `enter` callback receives _one_ argument. A `toValue` (TypedArray) which rep
 
 ## Implementation
 
-[FILL ME IN]
+A minimal spring-based transition system looks something like this:
+
+```js
+function createSpring (stiffness, damping, initialValue) {
+  let currentValue = initialValue
+  let previousValue = initialValue
+  return function tick (destinationValue) {
+    const velocity = currentValue - previousValue
+    const distanceToDestination = destinationValue - currentValue
+    const acceleration = distanceToDestination * stiffness - velocity * damping
+    const nextVal = currentValue + velocity + acceleration
+    previousValue = currentValue
+    currentValue = nextVal
+    return nextVal
+  }
+}
+```
+
+This requires the user to provide three values when defining the transition, `stiffness`, `damping`, and
+`initialValue` (i.e. `enter`), and a `destinationValue` on each tick. The library is then responsible for
+maintaining the current and previous values, from which it derives the velocity.
+
+For scalar uniforms, performing the transition on the CPU is as simple as the above example. Not much extra
+work is required to make this support vec2, vec3, and vec4 values. An `isAtDestination` function, which returns
+`true` when the `distance_to_destination` and `length(velocity)` are below some threshold, could be used to
+fire the `onEnd` callback and to stop the animation when the destination has been reached (though the
+calculation has such low overhead, I might be inclined to just run it on every frame).
+
+For attributes, the transition should be performed in a transform feedback pass. Three buffers are required to
+maintain the animating state: two read buffers for the `currentValue`s and `previousValue`s and one write buffer
+for the `nextValue`s. On each frame, the buffers are rotated. In other words: the `nextValue` buffers can become
+the `currentValue`, and the `currentValue` buffers can become the `previousValue`. This then frees up the
+`previousValue` buffers to be used as the write buffers for the `nextValue`s. The attribute buffers as they exist
+in the current implementation can become the `to` (or `destinationValue`) buffers.
