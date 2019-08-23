@@ -7,18 +7,23 @@
 
 ## Abstract
 
-As previous animation- and transition-related RFCs have pointed out, easy-to-use animation and
-transition systems are often-requested features. The existing interpolation-based transition API
-allows users to define transitions much like you'd define one with CSS. Given a duration and 
-easing method, the transition system will interpolate between a `from` value and a `to` value.
-For natural-looking transitions, an easing method (e.g. `ease-in-out`) is often used to make the
-animating object or value appear to accelerate and decelerate, maintaining some sense of momentum,
-as moving objects tend to do in the real world. Interrupting these transitions can break this
-illusion, however, as the object's position at the time of interruption then becomes the new
-`from` value for a new transition. The object often abrubtly changes its direction and speed as
-it suddenly jumps to the beginning of the new transition's easing curve. Physics-based animations,
-like the spring-based transition system proposed here, can get around this problem by maintaining
-an animating value's "momentum".
+As previous animation- and transition-related RFCs have pointed out, easy-to-use animation /
+transition systems are often-requested features. This RFC proposes, as an alternative to the
+existing interpolation-based transition system, a physics-based method using parameterized springs.
+
+
+## Background
+
+The existing interpolation-based transition API allows users to define transitions much like you'd
+define one with CSS. Given a duration and  easing method, the transition system will interpolate
+between a `from` value and a `to` value. For natural-looking transitions, an easing method (e.g.
+`ease-in-out`) is often used to make the animating object or value appear to accelerate and
+decelerate, maintaining some sense of momentum, as moving objects tend to do in the real world.
+Interrupting these transitions can break this illusion, however, as the object's position at the
+time of interruption then becomes the new `from` value for a new transition. The object often
+abrubtly changes its direction and speed as it suddenly jumps to the beginning of the new
+transition's easing curve. Physics-based animations, like the spring-based transition system
+proposed here, can get around this problem by maintaining an animating value's "momentum".
 
 
 ## About spring-based transitions
