@@ -110,7 +110,7 @@ The `enter` callback receives _one_ argument. A `toValue` (TypedArray) which rep
 
 ## Implementation
 
-A minimal spring-based transition system looks something like this:
+Spring animation logic can be fairly simple. Here's an example (Note: this is not the proposed API, which can be found in the "Approach" section):
 
 ```js
 function createSpring (stiffness, damping, initialValue) {
